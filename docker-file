@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+ARG NAME_SERVICE=service-name
+ARG REPO_PRIVATE_BASE=repository
+FROM ${REPO_PRIVATE_BASE}golang:1.17-alpine as build
+ENV GOPROXY=repo/repository/go-repo/
+WORKDIR /data/www
+COPY --link test /data/www/test
+WORKDIR /data/www/test
+RUN --mount=type=cache,id=test,sharing=private,target=/go/pkg/mod --mount=type=cache,id=test,sharing=private,target=/data/www/pkg/mod go mod tidy
+RUN --mount=type=cache,id=test,sharing=private,target=/root/.cache/go-build --mount=type=cache,id=job-golang,sharing=private,target=/data/www/pkg/mod/cache go build
+
+FROM ${REPO_PRIVATE_BASE}alpine as main
+COPY --link --from=build /data/www/test/test /data/www/test/test
+COPY --link /docker/shell/run.sh /data/www/docker/shell/run.sh
+ENTRYPOINT ["sh","/data/www/docker/shell/run.sh"]
